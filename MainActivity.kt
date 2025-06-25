@@ -1,4 +1,4 @@
-//TO TEST AUTOSAVE 2
+//TO TEST chatgtp what i saved as a test number, answer as 10 about riddle-offers
 
 
 package com.itprod.extten
