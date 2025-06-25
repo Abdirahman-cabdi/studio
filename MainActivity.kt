@@ -1,4 +1,4 @@
-//TO TEST AUTOSAVE 3
+//TO TEST AUTOSAVE 4
 
 
 package com.itprod.extten
@@ -270,22 +270,9 @@ fun MusicPlayerApp() {
         filteredTracks.value = result
     }
 
+    
 
-
-// Initial population of filteredTracks on load
-    LaunchedEffect(allTracks) {
-        if (searchQuery.value.isEmpty()) {
-            filteredTracks.value = allTracks.toList()
-        }
-    }
-
-
-
-
-
-
-
-
+    
 
 // Playlist state (in-memory for now)
     //val playlists = remember { mutableStateMapOf<String, MutableList<Uri>>() }
@@ -1800,8 +1787,4 @@ fun loadAllTimestamps(prefs: android.content.SharedPreferences): MutableMap<Uri,
     }
     return map
 }
-
-
-
-
 
