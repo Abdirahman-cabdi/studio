@@ -1,4 +1,4 @@
-//TO TEST chatgtp what i saved as a test number, answer as 10 about riddle-offers
+//TO TEST AUTOSAVE 2
 
 
 package com.itprod.extten
@@ -220,30 +220,41 @@ fun MusicPlayerApp() {
 
     val lastSeekBeforeReset = remember { mutableStateMapOf<Uri, Int>() }
 
-    
+    val trackInfos = remember { mutableStateListOf<TrackInfo>() }
     val allTracks = remember { mutableStateListOf<Uri>() }
     val folderTracks = remember { mutableStateListOf<Uri>() }
     val folders = remember { mutableStateListOf<String>() }
     val folderPaths = remember { mutableMapOf<String, String>() }
+    val searchQuery = remember { mutableStateOf("") }
+
+    val filteredTracks = remember { mutableStateOf<List<TrackInfo>>(emptyList()) }
+
+    val filteredTracks = remember(searchQuery.value, trackInfos) {
+        if (searchQuery.value.isBlank()) {
+            trackInfos
+        } else {
+            trackInfos.filter {
+                it.fileName.contains(searchQuery.value, ignoreCase = true)
+            }
+        }
+    }
 
     // Put your LaunchedEffect here:
     LaunchedEffect(sortTrigger.value) {
-        val sortedAllTracks = allTracks.sortedWith(compareBy { uri ->
-            when (selectedSortAttribute.value) {
-                "Title" -> getTitle(context, uri)
-                "File name" -> getFileName(context, uri)
-                "Artist" -> getArtist(context, uri)
-                "Duration" -> getDuration(context, uri)
-                "Date Added" -> getDateAdded(context, uri)
-                else -> getFileName(context, uri)
+        val sorted = withContext(Dispatchers.Default) {
+            val baseList = if (searchQuery.value.isBlank()) trackInfos else filteredTracks.value
+            val sortedList = when (selectedSortAttribute.value) {
+                "Title" -> baseList.sortedBy { it.title.lowercase() }
+                "File name" -> baseList.sortedBy { it.fileName.lowercase() }
+                "Artist" -> baseList.sortedBy { it.artist.lowercase() }
+                "Duration" -> baseList.sortedBy { it.duration }
+                "Date Added" -> baseList.sortedBy { it.dateAdded }
+                else -> baseList
             }
-        })
-        allTracks.clear()
-        if (isAscending.value) {
-            allTracks.addAll(sortedAllTracks)
-        } else {
-            allTracks.addAll(sortedAllTracks.asReversed())
+            if (isAscending.value) sortedList else sortedList.asReversed()
         }
+
+        filteredTracks.value = sorted
     }
     // New state for selection
 
@@ -252,25 +263,26 @@ fun MusicPlayerApp() {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    val searchQuery = remember { mutableStateOf("") }
-    val filteredTracks = remember { mutableStateOf<List<Uri>>(allTracks.toList()) }
 
-    LaunchedEffect(searchQuery.value, allTracks) {
-        delay(300) // Debounce: wait until user stops typing
+
+
+    LaunchedEffect(searchQuery.value) {
+        delay(200) // Shorter debounce
         val query = searchQuery.value.trim()
 
         val result = withContext(Dispatchers.Default) {
             if (query.isEmpty()) {
-                allTracks.toList()
+                trackInfos.toList()
             } else {
-                allTracks.filter { uri ->
-                    getFileName(context, uri).contains(query, ignoreCase = true)
+                trackInfos.filter {
+                    it.fileName.contains(query, ignoreCase = true)
                 }
             }
         }
 
         filteredTracks.value = result
     }
+
 
 // Initial population of filteredTracks on load
     LaunchedEffect(allTracks) {
@@ -488,11 +500,28 @@ fun MusicPlayerApp() {
 
 
         // Load all audio files (include all, don't filter)
-        val allTracksTemp = loadAllAudioFiles(context).toMutableSet()
+        //val allTracksTemp = loadAllAudioFiles(context).toMutableSet()
+
+        val loadedUris = loadAllAudioFiles(context)
+        val uris = loadAllAudioFiles(context)
 
         allTracks.clear()
-        allTracks.addAll(allTracksTemp)
-        filteredTracks.value = allTracks.toList()
+        allTracks.addAll(uris)
+
+        val infoList = uris.map { uri ->
+            TrackInfo(
+                uri = uri,
+                title = getTitle(context, uri),
+                fileName = getFileName(context, uri),
+                artist = getArtist(context, uri),
+                duration = getDuration(context, uri),
+                dateAdded = getDateAdded(context, uri)
+            )
+        }
+
+        trackInfos.clear()
+        trackInfos.addAll(infoList)
+        filteredTracks.value = infoList // ✅ Initialize with all tracks
 
 
 
@@ -1123,7 +1152,8 @@ fun MusicPlayerApp() {
                     state = allTracksScroll,
                     modifier = Modifier.weight(1f)
                 ) {
-                    itemsIndexed(filteredTracks.value) { index: Int, uri: Uri ->
+                    itemsIndexed(filteredTracks) { index, trackInfo ->
+                        val uri = trackInfo.uri
                         val isCurrent = uri == playingUri.value && selectedTab.value == 0
                         val isSelected = selectedTracks.contains(uri)
 
@@ -1139,8 +1169,8 @@ fun MusicPlayerApp() {
                                         } else {
                                             if (isCurrent) togglePlayPause()
                                             else {
-                                                currentPlaybackList.value = filteredTracks.value
-                                                play(index, filteredTracks.value)
+                                                currentPlaybackList.value = filteredTracks.value.map { it.uri }
+                                                play(index, filteredTracks.value.map { it.uri })
                                             }
                                         }
                                     },
@@ -1782,4 +1812,6 @@ fun loadAllTimestamps(prefs: android.content.SharedPreferences): MutableMap<Uri,
     }
     return map
 }
+
+
 
