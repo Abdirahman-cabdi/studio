@@ -1,4 +1,4 @@
-//TO TEST AUTOSAVE 4
+//TO TEST AUTOSAVE 5
 
 
 package com.itprod.extten
@@ -229,26 +229,36 @@ fun MusicPlayerApp() {
 
 
 
-    val filteredTracks = remember { mutableStateOf<List<TrackInfo>>(emptyList()) }
-
+    val filteredTracks by remember(searchQuery.value, trackInfos) {
+        derivedStateOf {
+            val query = searchQuery.value.trim()
+            if (query.isBlank()) {
+                trackInfos
+            } else {
+                trackInfos.filter {
+                    it.fileName.contains(query, ignoreCase = true)
+                }
+            }
+        }
+    }
 
 
     // Put your LaunchedEffect here:
     LaunchedEffect(sortTrigger.value) {
-        val sorted = withContext(Dispatchers.Default) {
-            val baseList = if (searchQuery.value.isBlank()) trackInfos else filteredTracks.value
-            val sortedList = when (selectedSortAttribute.value) {
-                "Title" -> baseList.sortedBy { it.title.lowercase() }
-                "File name" -> baseList.sortedBy { it.fileName.lowercase() }
-                "Artist" -> baseList.sortedBy { it.artist.lowercase() }
-                "Duration" -> baseList.sortedBy { it.duration }
-                "Date Added" -> baseList.sortedBy { it.dateAdded }
-                else -> baseList
+        val sortedList = withContext(Dispatchers.Default) {
+            val sorted = when (selectedSortAttribute.value) {
+                "Title" -> trackInfos.sortedBy { it.title.lowercase() }
+                "File name" -> trackInfos.sortedBy { it.fileName.lowercase() }
+                "Artist" -> trackInfos.sortedBy { it.artist.lowercase() }
+                "Duration" -> trackInfos.sortedBy { it.duration }
+                "Date Added" -> trackInfos.sortedBy { it.dateAdded }
+                else -> trackInfos
             }
-            if (isAscending.value) sortedList else sortedList.asReversed()
+            if (isAscending.value) sorted else sorted.asReversed()
         }
 
-        filteredTracks.value = sorted
+        trackInfos.clear()
+        trackInfos.addAll(sortedList)
     }
     // New state for selection
 
@@ -260,19 +270,11 @@ fun MusicPlayerApp() {
 
 
 
-    LaunchedEffect(searchQuery.value) {
-        delay(200) // Debounce
-        val query = searchQuery.value.trim()
-        val result = withContext(Dispatchers.Default) {
-            if (query.isEmpty()) trackInfos.toList()
-            else trackInfos.filter { it.fileName.contains(query, ignoreCase = true) }
-        }
-        filteredTracks.value = result
-    }
 
-    
 
-    
+
+
+
 
 // Playlist state (in-memory for now)
     //val playlists = remember { mutableStateMapOf<String, MutableList<Uri>>() }
@@ -496,7 +498,6 @@ fun MusicPlayerApp() {
 
         trackInfos.clear()
         trackInfos.addAll(infoList)
-        filteredTracks.value = infoList // ✅ Initialize with all tracks
 
 
 
@@ -1127,7 +1128,7 @@ fun MusicPlayerApp() {
                     state = allTracksScroll,
                     modifier = Modifier.weight(1f)
                 ) {
-                    itemsIndexed(filteredTracks.value) { index, track ->
+                    itemsIndexed(filteredTracks) { index, track ->
                         val uri = track.uri
                         val isCurrent = uri == playingUri.value && selectedTab.value == 0
                         val isSelected = selectedTracks.contains(uri)
@@ -1144,8 +1145,8 @@ fun MusicPlayerApp() {
                                         } else {
                                             if (isCurrent) togglePlayPause()
                                             else {
-                                                currentPlaybackList.value = filteredTracks.value.map { it.uri }
-                                                play(index, filteredTracks.value.map { it.uri })
+                                                currentPlaybackList.value = filteredTracks.map { it.uri }
+                                                play(index, filteredTracks.map { it.uri })
                                             }
                                         }
                                     },
