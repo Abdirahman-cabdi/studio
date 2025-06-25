@@ -1,4 +1,4 @@
-//TO TEST AUTOSAVE 2
+//TO TEST AUTOSAVE 3
 
 
 package com.itprod.extten
@@ -227,17 +227,11 @@ fun MusicPlayerApp() {
     val folderPaths = remember { mutableMapOf<String, String>() }
     val searchQuery = remember { mutableStateOf("") }
 
+
+
     val filteredTracks = remember { mutableStateOf<List<TrackInfo>>(emptyList()) }
 
-    val filteredTracks = remember(searchQuery.value, trackInfos) {
-        if (searchQuery.value.isBlank()) {
-            trackInfos
-        } else {
-            trackInfos.filter {
-                it.fileName.contains(searchQuery.value, ignoreCase = true)
-            }
-        }
-    }
+
 
     // Put your LaunchedEffect here:
     LaunchedEffect(sortTrigger.value) {
@@ -267,21 +261,15 @@ fun MusicPlayerApp() {
 
 
     LaunchedEffect(searchQuery.value) {
-        delay(200) // Shorter debounce
+        delay(200) // Debounce
         val query = searchQuery.value.trim()
-
         val result = withContext(Dispatchers.Default) {
-            if (query.isEmpty()) {
-                trackInfos.toList()
-            } else {
-                trackInfos.filter {
-                    it.fileName.contains(query, ignoreCase = true)
-                }
-            }
+            if (query.isEmpty()) trackInfos.toList()
+            else trackInfos.filter { it.fileName.contains(query, ignoreCase = true) }
         }
-
         filteredTracks.value = result
     }
+
 
 
 // Initial population of filteredTracks on load
@@ -1152,8 +1140,8 @@ fun MusicPlayerApp() {
                     state = allTracksScroll,
                     modifier = Modifier.weight(1f)
                 ) {
-                    itemsIndexed(filteredTracks) { index, trackInfo ->
-                        val uri = trackInfo.uri
+                    itemsIndexed(filteredTracks.value) { index, track ->
+                        val uri = track.uri
                         val isCurrent = uri == playingUri.value && selectedTab.value == 0
                         val isSelected = selectedTracks.contains(uri)
 
@@ -1812,6 +1800,8 @@ fun loadAllTimestamps(prefs: android.content.SharedPreferences): MutableMap<Uri,
     }
     return map
 }
+
+
 
 
 
